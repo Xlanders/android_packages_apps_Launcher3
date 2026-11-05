@@ -26,6 +26,7 @@ import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCH
 import static com.android.launcher3.util.SplitConfigurationOptions.STAGE_POSITION_BOTTOM_OR_RIGHT;
 
 import android.app.ActivityOptions;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
@@ -34,6 +35,7 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.Display;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManagerGlobal;
@@ -398,10 +400,17 @@ public interface TaskShortcutFactory {
         }
 
         private boolean isAvailable(RecentsViewContainer container) {
+            Context context = container.asContext();
+            // Desktop mode may be supported for external displays only (as on LineageOS), so
+            // check the display the task is shown on rather than the whole device.
+            Display display = context.getDisplay();
+            boolean desktopOnThisDisplay = display != null
+                    ? DesktopModeStatus.isDesktopModeSupportedOnDisplay(context, display)
+                    : DesktopModeStatus.canEnterDesktopMode(context);
             return Settings.Global.getInt(
-                    container.asContext().getContentResolver(),
+                    context.getContentResolver(),
                     Settings.Global.DEVELOPMENT_ENABLE_FREEFORM_WINDOWS_SUPPORT, 0) != 0
-                    && !DesktopModeStatus.canEnterDesktopMode(container.asContext());
+                    && !desktopOnThisDisplay;
         }
     };
 
