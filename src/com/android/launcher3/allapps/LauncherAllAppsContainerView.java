@@ -19,6 +19,7 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.WindowInsets;
 
+import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherState;
 import com.android.launcher3.statemanager.StateManager;
@@ -62,6 +63,13 @@ public class LauncherAllAppsContainerView extends ActivityAllAppsContainerView<L
         }
         return manager.getCurrentStableState()
                 .shouldFloatingSearchBarUsePillWhenUnfocused(launcher);
+    }
+
+    @Override
+    public boolean isSearchBarAtBottom() {
+        DeviceProfile dp = mActivityContext.getDeviceProfile();
+        return !isSearchBarFloating() && !dp.getDeviceProperties().isTablet()
+                && !dp.isVerticalBarLayout();
     }
 
     @Override

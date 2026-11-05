@@ -163,6 +163,11 @@ public class WorkUtilityView extends LinearLayout implements Insettable,
             DeviceProfile dp = ActivityContext.lookupContext(getContext()).getDeviceProfile();
             if (mActivityContext.getAppsView().isSearchBarFloating()) {
                 bottomMargin += dp.getHotseatProfile().getQsbHeight();
+            } else if (mActivityContext.getAppsView().isSearchBarAtBottom()) {
+                bottomMargin += getResources().getDimensionPixelSize(
+                        R.dimen.all_apps_search_bar_field_height)
+                        + getResources().getDimensionPixelSize(
+                                R.dimen.all_apps_search_bar_bottom_margin);
             }
 
             if (!dp.getDeviceProperties().isGestureMode() && dp.isTaskbarPresent) {

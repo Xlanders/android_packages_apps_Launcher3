@@ -87,6 +87,7 @@ import com.android.launcher3.model.StringCache;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.pm.UserCache;
 import com.android.launcher3.recyclerview.AllAppsRecyclerViewPool;
+import com.android.launcher3.testing.shared.ResourceUtils;
 import com.android.launcher3.util.ItemInfoMatcher;
 import com.android.launcher3.util.Preconditions;
 import com.android.launcher3.util.Themes;
@@ -288,6 +289,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mSearchContainer.setFocusedByDefault(true);
         }
         mSearchUiManager = (SearchUiManager) mSearchContainer;
+        applySearchBarPosition();
     }
 
     public List<AllAppsRow> getAdditionalHeaderRows() {
@@ -733,6 +735,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (isSearchBarFloating()) {
             alignParentTop(rvContainer, showTabs);
             alignParentTop(getSearchRecyclerView(), /* tabs= */ false);
+        } else if (isSearchBarAtBottom()) {
+            layoutAboveSearchContainer(rvContainer, showTabs);
+            layoutAboveSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
         } else {
             layoutBelowSearchContainer(rvContainer, showTabs);
             layoutBelowSearchContainer(getSearchRecyclerView(), /* tabs= */ false);
@@ -791,7 +796,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     @Override
     public void addChildrenForAccessibility(ArrayList<View> arrayList) {
         super.addChildrenForAccessibility(arrayList);
-        if (!Flags.floatingSearchBar()) {
+        if (!Flags.floatingSearchBar() && !isSearchBarAtBottom()) {
             // Searchbox container is visually at the top of the all apps UI but it's present in
             // end of the children list.
             // We need to move the searchbox to the top in a11y tree for a11y services to read the
@@ -822,7 +827,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
 
         boolean bgVisible = mSearchUiManager.getBackgroundVisibility();
-        if (scrolledOffset == 0 && !isSearching()) {
+        if (isSearchBarAtBottom()) {
+            bgVisible = true;
+        } else if (scrolledOffset == 0 && !isSearching()) {
             bgVisible = true;
         } else if (scrolledOffset > mHeaderThreshold) {
             bgVisible = false;
@@ -866,6 +873,23 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
      */
     protected boolean isSearchBarFloating() {
         return mSearchUiDelegate.isSearchBarFloating();
+    }
+
+    /**
+     * @return true if the search bar sits at the bottom of this container, within thumb reach,
+     *         instead of above the apps list. Only used when the search bar is not floating.
+     */
+    public boolean isSearchBarAtBottom() {
+        return false;
+    }
+
+    /**
+     * Space kept below a bottom search bar so that it clears the nav bar, or the gesture handle
+     * when the reported bottom inset is empty in gesture navigation.
+     */
+    public int getSearchBarBottomInset() {
+        return Math.max(mInsets.bottom, ResourceUtils.getNavbarSize(
+                ResourceUtils.NAVBAR_HEIGHT, getResources()));
     }
 
     /**
@@ -937,6 +961,62 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                     R.dimen.all_apps_tabs_margin_top);
         }
         layoutParams.topMargin = topMargin;
+    }
+
+    private void layoutAboveSearchContainer(View v, boolean includeTabsMargin) {
+        if (!(v.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
+            return;
+        }
+
+        alignParentTop(v, includeTabsMargin);
+        ((RelativeLayout.LayoutParams) v.getLayoutParams())
+                .addRule(RelativeLayout.ABOVE, R.id.search_container_all_apps);
+    }
+
+    /**
+     * Places the search bar either above the apps list or at the bottom of the screen, and moves
+     * the header and the fast scroller accordingly. Not used with a floating search bar.
+     */
+    private void applySearchBarPosition() {
+        if (isSearchBarFloating() || mSearchContainer == null
+                || !(mSearchContainer.getLayoutParams() instanceof RelativeLayout.LayoutParams)) {
+            return;
+        }
+        boolean atBottom = isSearchBarAtBottom();
+
+        RelativeLayout.LayoutParams searchLp =
+                (RelativeLayout.LayoutParams) mSearchContainer.getLayoutParams();
+        searchLp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        if (atBottom) {
+            searchLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        }
+
+        RelativeLayout.LayoutParams headerLp =
+                (RelativeLayout.LayoutParams) mHeader.getLayoutParams();
+        headerLp.removeRule(RelativeLayout.BELOW);
+        headerLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+        if (atBottom) {
+            headerLp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        } else {
+            headerLp.addRule(RelativeLayout.BELOW, R.id.search_container_all_apps);
+        }
+
+        int scrollerBottomMargin = 0;
+        if (atBottom) {
+            scrollerBottomMargin = getSearchBarBottomInset()
+                    + getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_field_height)
+                    + getResources().getDimensionPixelSize(
+                            R.dimen.all_apps_search_bar_bottom_margin)
+                    + getResources().getDimensionPixelSize(
+                            R.dimen.fastscroll_bottom_margin_floating_search);
+        }
+        for (View v : new View[] {mFastScroller, mFastScrollLetterLayout}) {
+            if (v != null && v.getLayoutParams() instanceof RelativeLayout.LayoutParams) {
+                ((RelativeLayout.LayoutParams) v.getLayoutParams()).bottomMargin =
+                        scrollerBottomMargin;
+            }
+        }
+        requestLayout();
     }
 
     private void alignParentTop(View v, boolean includeTabsMargin) {
@@ -1228,6 +1308,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             }
             setPadding(grid.allAppsLeftRightMargin, topPadding, grid.allAppsLeftRightMargin, 0);
         }
+        applySearchBarPosition();
         InsettableFrameLayout.dispatchInsets(this, insets);
     }
 
@@ -1287,7 +1368,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     private void applyAdapterSideAndBottomPaddings(DeviceProfile grid) {
-        int bottomPadding = Math.max(mInsets.bottom, mNavBarScrimHeight);
+        int bottomPadding = isSearchBarAtBottom()
+                ? 0 : Math.max(mInsets.bottom, mNavBarScrimHeight);
         mAH.forEach(adapterHolder -> {
             adapterHolder.mPadding.bottom = bottomPadding;
             adapterHolder.mPadding.left = grid.allAppsPadding.left;

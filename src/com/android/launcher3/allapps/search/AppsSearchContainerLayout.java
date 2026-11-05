@@ -31,6 +31,7 @@ import android.text.method.TextKeyListener;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.WindowInsets;
 import android.view.ViewGroup.MarginLayoutParams;
 
 import com.android.launcher3.DeviceProfile;
@@ -42,6 +43,7 @@ import com.android.launcher3.allapps.AllAppsStore;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.allapps.PrivateProfileManager;
 import com.android.launcher3.allapps.SearchUiManager;
+import com.android.launcher3.anim.KeyboardInsetAnimationCallback;
 import com.android.launcher3.search.SearchCallback;
 import com.android.launcher3.util.ApiWrapper;
 import com.android.launcher3.views.ActivityContext;
@@ -60,6 +62,7 @@ public class AppsSearchContainerLayout extends ExtendedEditText
     private final SpannableStringBuilder mSearchQueryBuilder;
 
     private ActivityAllAppsContainerView<?> mAppsView;
+    private int mBottomInset;
 
     // The amount of pixels to shift down and overlap with the rest of the content.
     private final int mContentOverlap;
@@ -127,7 +130,11 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         int shift = expectedLeft - left;
         setTranslationX(shift);
 
-        offsetTopAndBottom(mContentOverlap);
+        // The overlap tucks a top search bar into the apps list; at the bottom it would push the
+        // bar onto the nav bar instead.
+        if (mAppsView == null || !mAppsView.isSearchBarAtBottom()) {
+            offsetTopAndBottom(mContentOverlap);
+        }
     }
 
     @Override
@@ -199,7 +206,28 @@ public class AppsSearchContainerLayout extends ExtendedEditText
                 || mLauncher.getDeviceProfile().getDeviceProperties().isTablet()) {
             mlp.topMargin = insets.top;
         }
+        if (mAppsView.isSearchBarAtBottom()) {
+            mBottomInset = mAppsView.getSearchBarBottomInset();
+            mlp.bottomMargin = mBottomInset + getResources().getDimensionPixelSize(
+                    R.dimen.all_apps_search_bar_bottom_margin);
+            setWindowInsetsAnimationCallback(new KeyboardInsetAnimationCallback(this));
+        } else {
+            mlp.bottomMargin = 0;
+            setWindowInsetsAnimationCallback(null);
+            setTranslationY(0);
+        }
         requestLayout();
+    }
+
+    @Override
+    public WindowInsets onApplyWindowInsets(WindowInsets insets) {
+        if (mAppsView != null && mAppsView.isSearchBarAtBottom()) {
+            // Sit right above the keyboard. The bottom margin already clears the nav bar.
+            int imeBottom = insets.isVisible(WindowInsets.Type.ime())
+                    ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0;
+            setTranslationY(-Math.max(0, imeBottom - mBottomInset));
+        }
+        return super.onApplyWindowInsets(insets);
     }
 
     @Override
