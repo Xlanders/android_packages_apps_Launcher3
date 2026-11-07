@@ -561,10 +561,13 @@ object InputConsumerUtils {
         // with shell-transitions, home is resumed during recents animation, so
         // explicitly check against recents animation too.
         // Home is always running and isn't resumed when home shows behind desktop.
+        // Home also stays resumed behind a freeform window without a desktop, but the gesture
+        // is then meant for that window.
         val launcherResumedThroughShellTransition =
             containerInterface.isResumed() &&
                 !previousGestureState.isRecentsAnimationRunning &&
-                !desktopState.shouldShowHomeBehindDesktop
+                !desktopState.shouldShowHomeBehindDesktop &&
+                runningTask?.isFreeformTask != true
 
         // If a task fragment within Launcher is resumed
         val launcherChildActivityResumed =

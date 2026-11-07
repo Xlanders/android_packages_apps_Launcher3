@@ -219,6 +219,12 @@ public final class LauncherActivityInterface extends
             // it as if it is not visible.
             return false;
         }
+        if (!launcher.hasWindowFocus() && TopTaskTracker.INSTANCE.get(launcher)
+                .getCachedTopTask(false, launcher.getDisplayId()).isFreeformTask()) {
+            // Home stays visible behind a freeform window, but that window is on top, so go
+            // through the recents animation to take it into Overview.
+            return false;
+        }
         if (isInLiveTileMode()) {
             RecentsView recentsView = getVisibleRecentsView();
             if (recentsView == null) {

@@ -546,6 +546,15 @@ public class TopTaskTracker extends ISplitScreenListener.Stub implements TaskSta
         }
 
         /**
+         * Returns true if this represents a freeform window, which can sit above a resumed home
+         * when there's no desktop.
+         */
+        public boolean isFreeformTask() {
+            final TaskInfo baseTask = getLegacyBaseTask();
+            return baseTask != null && baseTask.getWindowingMode() == WINDOWING_MODE_FREEFORM;
+        }
+
+        /**
          * Returns true if this represents the RECENTS activity type task
          */
         public boolean isRecentsTask() {
