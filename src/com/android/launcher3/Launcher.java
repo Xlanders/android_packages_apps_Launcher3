@@ -167,6 +167,7 @@ import com.android.launcher3.accessibility.LauncherAccessibilityDelegate;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.allapps.AllAppsTransitionController;
 import com.android.launcher3.allapps.DiscoveryBounce;
+import com.android.launcher3.allapps.search.RecentSearchApps;
 import com.android.launcher3.anim.AnimationSuccessListener;
 import com.android.launcher3.anim.PropertyListBuilder;
 import com.android.launcher3.apppairs.AppPairIcon;
@@ -2140,6 +2141,10 @@ public class Launcher extends StatefulActivity<LauncherState>
         }
 
         RunnableList result = super.startActivitySafely(v, intent, item);
+        if (result != null && item instanceof AppInfo && mAppsView != null
+                && mAppsView.isSearching()) {
+            RecentSearchApps.add(this, item.getComponentKey());
+        }
         if (result != null && v instanceof BubbleTextView) {
             // This is set to the view that launched the activity that navigated the user away
             // from launcher. Since there is no callback for when the activity has finished

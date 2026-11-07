@@ -44,8 +44,10 @@ import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.android.launcher3.allapps.PrivateProfileManager;
 import com.android.launcher3.allapps.SearchUiManager;
 import com.android.launcher3.anim.KeyboardInsetAnimationCallback;
+import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.search.SearchCallback;
 import com.android.launcher3.util.ApiWrapper;
+import com.android.launcher3.util.ComponentKey;
 import com.android.launcher3.views.ActivityContext;
 
 import java.util.ArrayList;
@@ -197,6 +199,44 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         mSearchQueryBuilder.clearSpans();
         Selection.setSelection(mSearchQueryBuilder, 0);
         mAppsView.onClearSearchResult();
+        // The query was erased while typing: offer the recent search apps again.
+        if (hasFocus()) {
+            showRecentSearchApps();
+        }
+    }
+
+    @Override
+    protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+        super.onFocusChanged(focused, direction, previouslyFocusedRect);
+        if (mAppsView == null || length() > 0) {
+            return;
+        }
+        if (focused) {
+            showRecentSearchApps();
+        } else {
+            mAppsView.onClearSearchResult();
+        }
+    }
+
+    /**
+     * Shows the apps last opened from search, on one row, while the search field is focused and
+     * still empty.
+     */
+    private void showRecentSearchApps() {
+        int maxApps = mLauncher.getDeviceProfile().numShownAllAppsColumns;
+        ArrayList<AdapterItem> items = new ArrayList<>();
+        for (ComponentKey key : RecentSearchApps.get(getContext())) {
+            AppInfo app = mAppsView.getAppsStore().getApp(key);
+            if (app != null) {
+                items.add(AdapterItem.asApp(app));
+            }
+            if (items.size() == maxApps) {
+                break;
+            }
+        }
+        if (!items.isEmpty()) {
+            mAppsView.setSearchResults(items);
+        }
     }
 
     @Override

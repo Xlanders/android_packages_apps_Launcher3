@@ -140,6 +140,13 @@ public class AllAppsSearchBarController
             reset();
             return true;
         }
+        // An empty but focused field shows the recent search apps: leave it, so the full apps
+        // list comes back with the keyboard gone.
+        if (mInput.isFocused()) {
+            mInput.clearFocus();
+            mInput.hideKeyboard();
+            return true;
+        }
         return false;
     }
 
